@@ -5,6 +5,56 @@ const MetricsData = require('../models/MetricsData');
 const asyncHandler = require('../middlewares/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 
+// Função para sanitizar valores numéricos e evitar NaN
+function sanitizeNumber(value) {
+  // Se o valor for NaN, undefined, null ou não numérico, retornar 0
+  if (value === undefined || value === null || isNaN(value)) {
+    return 0;
+  }
+  return value;
+}
+
+// Função para sanitizar o array de ações
+function sanitizeActions(actions) {
+  if (!Array.isArray(actions)) {
+    return [];
+  }
+  
+  // Filtrar e transformar as ações para garantir que são válidas
+  return actions.map(action => ({
+    action_type: action.action_type || 'unknown',
+    value: sanitizeNumber(parseFloat(action.value || 0))
+  })).filter(action => action.action_type !== 'unknown' || action.value > 0);
+}
+
+// Função auxiliar para extrair compras dos dados de ações
+function extractPurchasesFromActions(metric) {
+  // Simplifiquei a função para focar apenas no que sabemos que funciona
+  
+  // Verificar se existem ações e procurar por compras
+  if (metric.actions && Array.isArray(metric.actions)) {
+    // Tipos de ações que podem indicar compras
+    const purchaseTypes = ['purchase', 'offsite_conversion.fb_pixel_purchase'];
+    
+    // Procurar por qualquer ação que seja de compra
+    for (const action of metric.actions) {
+      if (purchaseTypes.includes(action.action_type) || action.action_type.includes('purchase')) {
+        return sanitizeNumber(parseInt(action.value || 0));
+      }
+    }
+  }
+  
+  // Se não encontrou compras nas ações, verificar se existe um campo direto de conversões
+  if (metric.conversions && typeof metric.conversions === 'number') {
+    // Assumir que conversões representam compras para fins de demonstração
+    // Para um ambiente de produção, isso precisaria ser ajustado conforme os dados reais
+    return sanitizeNumber(parseInt(metric.conversions));
+  }
+  
+  // Se nenhum valor for encontrado
+  return 0;
+}
+
 // @desc    Obter métricas da conta de anúncios do Meta
 // @route   GET /api/metrics/:companyId/:adAccountId
 // @access  Private
@@ -99,20 +149,25 @@ exports.getMetrics = asyncHandler(async (req, res, next) => {
             objectId: metric.object_id || adAccountId,
             objectName: metric.object_name || adAccount.name,
             metrics: {
-              impressions: parseInt(metric.impressions || 0),
-              clicks: parseInt(metric.clicks || 0),
-              spend: parseFloat(metric.spend || 0),
-              cpc: parseFloat(metric.cpc || 0),
-              cpm: parseFloat(metric.cpm || 0),
-              ctr: parseFloat(metric.ctr || 0),
-              reach: parseInt(metric.reach || 0),
-              frequency: parseFloat(metric.frequency || 0),
-              unique_clicks: parseInt(metric.unique_clicks || 0),
-              unique_ctr: parseFloat(metric.unique_ctr || 0),
-              cost_per_unique_click: parseFloat(metric.cost_per_unique_click || 0),
-              conversions: parseInt(metric.conversions || 0),
-              cost_per_conversion: parseFloat(metric.cost_per_conversion || 0),
-              conversion_rate: parseFloat(metric.conversion_rate || 0)
+              // Sanitizar todos os valores numéricos para evitar NaN
+              impressions: sanitizeNumber(parseInt(metric.impressions || 0)),
+              clicks: sanitizeNumber(parseInt(metric.clicks || 0)),
+              spend: sanitizeNumber(parseFloat(metric.spend || 0)),
+              cpc: sanitizeNumber(parseFloat(metric.cpc || 0)),
+              cpm: sanitizeNumber(parseFloat(metric.cpm || 0)),
+              ctr: sanitizeNumber(parseFloat(metric.ctr || 0)),
+              reach: sanitizeNumber(parseInt(metric.reach || 0)),
+              frequency: sanitizeNumber(parseFloat(metric.frequency || 0)),
+              unique_clicks: sanitizeNumber(parseInt(metric.unique_clicks || 0)),
+              unique_ctr: sanitizeNumber(parseFloat(metric.unique_ctr || 0)),
+              cost_per_unique_click: sanitizeNumber(parseFloat(metric.cost_per_unique_click || 0)),
+              conversions: sanitizeNumber(parseInt(metric.conversions || 0)),
+              cost_per_conversion: sanitizeNumber(parseFloat(metric.cost_per_conversion || 0)),
+              conversion_rate: sanitizeNumber(parseFloat(metric.conversion_rate || 0)),
+              // Extrair compras dos dados de ações (actions)
+              purchases: sanitizeNumber(extractPurchasesFromActions(metric)),
+              // Incluir o array completo de ações para processamento no frontend se necessário
+              actions: sanitizeActions(metric.actions || [])
             },
             syncInfo: {
               syncedAt: new Date(),
@@ -241,7 +296,8 @@ exports.syncCompanyMetrics = asyncHandler(async (req, res, next) => {
 async function fetchMetricsFromMeta(adAccount, startDate, endDate, level = 'account', objectId = null) {
   // Construir a URL da API do Meta
   let endpoint;
-  let fields = 'impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,unique_clicks';
+  // Usar apenas os campos principais e suportados pela API para evitar erro 400
+  let fields = 'impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,unique_clicks,conversions,actions';
   
   // Definir o endpoint com base no nível
   switch (level) {
@@ -269,11 +325,11 @@ async function fetchMetricsFromMeta(adAccount, startDate, endDate, level = 'acco
     access_token: adAccount.accessToken,
     fields,
     time_range: JSON.stringify({
-      since: startDate,
-      until: endDate
+      since: moment(startDate).format('YYYY-MM-DD'),
+      until: moment(endDate).format('YYYY-MM-DD')
     }),
     level: level,
-    time_increment: 1 // Dados diários
+    time_increment: 1  // Dados diários
   });
 
   // Se estiver buscando uma lista de objetos (campanhas, conjuntos de anúncios, anúncios)
@@ -337,6 +393,23 @@ async function fetchMetricsFromMeta(adAccount, startDate, endDate, level = 'acco
       } catch (error) {
         console.error(`Erro na paginação: ${error.message}`);
         break;
+      }
+    }
+    
+    // Adicionar log simples para debug
+    if (data.length > 0) {
+      console.log(`Recebidos ${data.length} registros de métricas da API do Facebook`);
+      
+      // Log simplificado para verificar a estrutura sem imprimir grandes objetos
+      if (data[0].actions) {
+        const actionTypes = data[0].actions.map(a => a.action_type);
+        console.log('Tipos de ações disponíveis:', actionTypes.join(', '));
+        
+        // Simplificar o log de compras
+        const hasPurchases = actionTypes.some(type => 
+          type === 'purchase' || type.includes('purchase')
+        );
+        console.log('Contém ações de compra:', hasPurchases ? 'Sim' : 'Não');
       }
     }
     

@@ -8,18 +8,30 @@ import {
   CircularProgress,
   Stack,
   Alert,
-  Paper
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Tooltip,
+  Snackbar
 } from '@mui/material';
 import { Grid } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
+import ShareIcon from '@mui/icons-material/Share';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DateRangeSelector from './DateRangeSelector'; // Reativado
 import { metricsService } from '../services/metricsService';
+import { reportService } from '../services/reportService';
 import { jsPDF } from 'jspdf';
 // @ts-ignore
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import moment from 'moment';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface MetricsDashboardProps {
   companyId: string;
@@ -43,6 +55,14 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
   const [totalMetrics, setTotalMetrics] = useState<any>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   
+  // Estados para a funcionalidade de compartilhamento de relatu00f3rio
+  const [shareDialogOpen, setShareDialogOpen] = useState<boolean>(false);
+  const [reportName, setReportName] = useState<string>('');
+  const [generatingReport, setGeneratingReport] = useState<boolean>(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<{reportId: string, reportUrl: string, reportName: string, expiresAt: string} | null>(null);
+  const [reportLinkCopied, setReportLinkCopied] = useState<boolean>(false);
+  
   // Estado para controlar quais mu00e9tricas estu00e3o selecionadas para exibiu00e7u00e3o nos gru00e1ficos
   const [selectedMetrics, setSelectedMetrics] = useState({
     // Gru00e1fico de barras
@@ -50,6 +70,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
     clicks: true,
     reach: false,
     conversions: false,
+    purchases: false,
     // Gru00e1fico de linha
     spend: true,
     ctr: true,
@@ -76,10 +97,21 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
       });
       
       if (response.success && response.data.length > 0) {
+        // Log detalhado para analisar estrutura de dados das métricas
+        console.log('Dados brutos de métricas recebidos:', JSON.stringify(response.data, null, 2));
+        console.log('Procurando dados de compras nas métricas:', response.data.map(metricDay => ({
+          data: metricDay.date,
+          compras_direta: metricDay.metrics.purchases,
+          acoes: metricDay.metrics.actions,
+          actionTypes: metricDay.metrics.actions ? metricDay.metrics.actions.map(a => a.action_type) : [],
+          additionalMetrics: metricDay.additionalMetrics
+        })));
+        
         setMetrics(response.data);
         
         // Calcular métricas totais
         const totals = metricsService.calculateTotalMetrics(response.data);
+        console.log('Métricas totais calculadas:', totals);
         setTotalMetrics(totals);
         
         // Definir a última atualização
@@ -105,88 +137,152 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
   // Gerar PDF com o relatório
   const generatePDF = () => {
     try {
+      // Verifica se há dados para gerar o relatório
+      if (!metrics || !metrics.length || !totalMetrics) {
+        console.error('Sem dados para gerar o relatório PDF');
+        return;
+      }
+
+      // Criar nova instância do PDF
       const doc = new jsPDF();
       
-      // Título
+      // Adicionar título
       doc.setFontSize(18);
       doc.text('Relatório de Métricas de Anúncios', 14, 22);
       
-      // Informações da conta
+      // Adicionar informações da conta
       doc.setFontSize(12);
-      doc.text(`Conta: ${adAccountName || adAccountId}`, 14, 32);
-      doc.text(`Período: ${moment(dateRange.startDate).format('DD/MM/YYYY')} - ${moment(dateRange.endDate).format('DD/MM/YYYY')}`, 14, 39);
-      doc.text(`Gerado em: ${moment().format('DD/MM/YYYY HH:mm')}`, 14, 46);
+      doc.text(`Conta: ${adAccountName || adAccountId}`, 14, 30);
+      doc.text(`Período: ${moment(dateRange.startDate).format('DD/MM/YYYY')} a ${moment(dateRange.endDate).format('DD/MM/YYYY')}`, 14, 38);
       
-      // Métricas totais
+      // Tabela com métricas gerais
       doc.setFontSize(14);
-      doc.text('Resumo de Métricas', 14, 56);
+      doc.text('Resumo Geral', 14, 50);
       
-      if (totalMetrics) {
-        const tableData = [
-          ['Métrica', 'Valor'],
-          ['Impressões', totalMetrics.impressions.toLocaleString()],
-          ['Cliques', totalMetrics.clicks.toLocaleString()],
-          ['Gastos', `R$ ${totalMetrics.spend.toFixed(2)}`],
-          ['CPC', `R$ ${totalMetrics.cpc.toFixed(2)}`],
-          ['CPM', `R$ ${totalMetrics.cpm.toFixed(2)}`],
-          ['CTR', `${totalMetrics.ctr.toFixed(2)}%`],
-          ['Alcance', totalMetrics.reach.toLocaleString()],
-          ['Conversões', totalMetrics.conversions.toLocaleString()],
-          ['Custo por Conversão', `R$ ${totalMetrics.cost_per_conversion.toFixed(2)}`]
-        ];
-        
-        // @ts-ignore
-        doc.autoTable({
-          startY: 60,
-          head: [tableData[0]],
-          body: tableData.slice(1),
-          theme: 'grid',
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [66, 139, 202] },
-        });
-      }
+      // Dados para tabela de resumo
+      const generalData = [
+        ['Impressões', totalMetrics.impressions.toLocaleString('pt-BR')],
+        ['Cliques', totalMetrics.clicks.toLocaleString('pt-BR')],
+        ['CTR', `${totalMetrics.ctr.toFixed(2)}%`],
+        ['Alcance', totalMetrics.reach.toLocaleString('pt-BR')],
+        ['Frequência', totalMetrics.frequency.toFixed(2)],
+        ['Gastos', `R$ ${totalMetrics.spend.toFixed(2)}`],
+        ['CPC', `R$ ${totalMetrics.cpc.toFixed(2)}`],
+        ['CPM', `R$ ${totalMetrics.cpm.toFixed(2)}`],
+        ['Compras', totalMetrics.purchases.toLocaleString('pt-BR')]
+      ];
+
+      // Adicionar tabela de resumo geral
+      autoTable(doc, {
+        startY: 55,
+        head: [['Métrica', 'Valor']],
+        body: generalData,
+        theme: 'striped',
+        headStyles: { fillColor: [66, 139, 202] }
+      });
       
-      // Dados diários
-      const dailyData = metricsService.aggregateMetricsByPeriod(metrics);
+      // Recuperar posição Y após a primeira tabela
+      const finalY = (doc as any).lastAutoTable.finalY;
       
-      if (dailyData.length > 0) {
-        // @ts-ignore
-        const startY = doc.lastAutoTable.finalY + 15;
-        
-        doc.setFontSize(14);
-        doc.text('Dados Diários', 14, startY);
-        
-        const dailyTableData = [
-          ['Data', 'Impressões', 'Cliques', 'Gastos (R$)', 'CTR (%)', 'CPC (R$)']
-        ];
-        
-        dailyData.forEach(item => {
-          dailyTableData.push([
-            moment(item.date).format('DD/MM/YYYY'),
-            item.impressions.toLocaleString(),
-            item.clicks.toLocaleString(),
-            item.spend.toFixed(2),
-            item.ctr.toFixed(2),
-            item.cpc.toFixed(2)
-          ]);
-        });
-        
-        // @ts-ignore
-        doc.autoTable({
-          startY: startY + 5,
-          head: [dailyTableData[0]],
-          body: dailyTableData.slice(1),
-          theme: 'grid',
-          styles: { fontSize: 9 },
-          headStyles: { fillColor: [66, 139, 202] },
-        });
+      // Adicionar tabela diária
+      doc.setFontSize(14);
+      doc.text('Métricas Diárias', 14, finalY + 15);
+      
+      // Dados para tabela diária
+      const dailyData = metrics.map((item: any) => [
+        moment(item.date).format('DD/MM/YYYY'),
+        item.metrics.impressions.toLocaleString('pt-BR'),
+        item.metrics.clicks.toLocaleString('pt-BR'),
+        `${item.metrics.ctr.toFixed(2)}%`,
+        `R$ ${item.metrics.spend.toFixed(2)}`,
+        extractPurchasesData(item).toLocaleString('pt-BR')
+      ]);
+      
+      // Inverter ordem da tabela diária para mostrar datas mais recentes primeiro
+      dailyData.reverse();
+      
+      // Adicionar tabela diária
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Data', 'Impressões', 'Cliques', 'CTR', 'Gastos', 'Compras']],
+        body: dailyData,
+        theme: 'striped',
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+      
+      // Rodapé
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Gerado em: ${moment().format('DD/MM/YYYY HH:mm')} - Página ${i} de ${pageCount}`, 14, doc.internal.pageSize.height - 10);
       }
       
       // Salvar o PDF
-      doc.save(`relatorio_${adAccountId}_${moment().format('YYYYMMDD')}.pdf`);
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      setError('Ocorreu um erro ao gerar o relatório PDF');
+      const fileName = `metricas_${adAccountId}_${moment().format('YYYYMMDD_HHmmss')}.pdf`;
+      doc.save(fileName);
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+    }
+  };
+
+  // Abrir diálogo para gerar relatório compartilhável
+  const openShareDialog = () => {
+    setReportName(`Relatório ${adAccountName || adAccountId} - ${moment(dateRange.startDate).format('DD/MM/YYYY')} a ${moment(dateRange.endDate).format('DD/MM/YYYY')}`);
+    setShareDialogOpen(true);
+    setReportError(null);
+    setReportData(null);
+  };
+
+  // Fechar diálogo de compartilhamento
+  const closeShareDialog = () => {
+    setShareDialogOpen(false);
+    setReportLinkCopied(false);
+  };
+
+  // Gerar relatório com link compartilhável
+  const generateShareableReport = async () => {
+    if (!companyId || !adAccountId || !totalMetrics) {
+      setReportError('Dados insuficientes para gerar o relatório');
+      return;
+    }
+
+    try {
+      setGeneratingReport(true);
+      setReportError(null);
+      
+      const response = await reportService.generateReport(companyId, adAccountId, {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        reportName: reportName
+      });
+
+      if (response.success && response.data) {
+        setReportData(response.data);
+      } else {
+        setReportError('Falha ao gerar o relatório. Tente novamente.');
+      }
+    } catch (err: any) {
+      console.error('Erro ao gerar relatório compartilhável:', err);
+      setReportError(err.message || 'Ocorreu um erro ao gerar o relatório');
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  // Copiar link de compartilhamento para a área de transferência
+  const copyReportLink = () => {
+    if (reportData?.reportUrl) {
+      const fullUrl = window.location.origin + reportService.getReportDownloadUrl(reportData.reportUrl);
+      navigator.clipboard.writeText(fullUrl)
+        .then(() => {
+          setReportLinkCopied(true);
+          setTimeout(() => setReportLinkCopied(false), 3000);
+        })
+        .catch(err => {
+          console.error('Erro ao copiar para área de transferência:', err);
+        });
     }
   };
 
@@ -199,6 +295,50 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
       // Não chame loadMetrics automaticamente!
     }
   }, []); // Array de dependências vazio = executa apenas na montagem
+
+  // Função auxiliar para extrair dados de compras de diferentes fontes
+  const extractPurchasesData = (metricItem: any): number => {
+    // 1. Verificar se existe diretamente no objeto metrics
+    if (metricItem.metrics.purchases) {
+      return metricItem.metrics.purchases;
+    }
+    
+    // 2. Verificar nos additionalMetrics (campo Map no MongoDB)
+    if (metricItem.additionalMetrics && metricItem.additionalMetrics.purchases) {
+      return Number(metricItem.additionalMetrics.purchases) || 0;
+    }
+    
+    // 3. Verificar nos additionalMetrics em formato de objeto
+    if (metricItem.additionalMetrics && typeof metricItem.additionalMetrics === 'object') {
+      // Procurar por qualquer campo que contenha 'purchase' ou 'compra' no nome
+      const purchaseMetrics = Object.entries(metricItem.additionalMetrics).find(
+        ([key]) => key.includes('purchase') || key.includes('compra')
+      );
+      if (purchaseMetrics) {
+        return Number(purchaseMetrics[1]) || 0;
+      }
+    }
+    
+    // 4. Procurar por actions (do Facebook)
+    if (metricItem.metrics.actions && Array.isArray(metricItem.metrics.actions)) {
+      const purchaseActions = metricItem.metrics.actions.filter(
+        (action: any) => 
+          action.action_type === 'purchase' || 
+          action.action_type === 'offsite_conversion.fb_pixel_purchase' ||
+          action.action_type.includes('purchase')
+      );
+      if (purchaseActions.length > 0) {
+        let total = 0;
+        purchaseActions.forEach((action: any) => {
+          total += Number(action.value) || 1;
+        });
+        return total;
+      }
+    }
+    
+    // 5. Para fins de debugging/implementação, temporariamente usar todas as conversões como compras
+    return metricItem.metrics.conversions || 0;
+  };
 
   // Preparar dados para o gráfico
   const prepareChartData = () => {
@@ -224,6 +364,8 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
           clicks: item.metrics.clicks,
           reach: item.metrics.reach || 0,
           conversions: item.metrics.conversions || 0,
+          // Extrair dados de compras de várias fontes possíveis
+          purchases: extractPurchasesData(item),
           spend: parseFloat(item.metrics.spend.toFixed(2)),
           ctr: parseFloat((item.metrics.ctr).toFixed(2)),
           cpc: item.metrics.cpc ? parseFloat(item.metrics.cpc.toFixed(2)) : 0,
@@ -241,6 +383,93 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
 
   return (
     <Box>
+      {/* Diu00e1logo de compartilhamento */}
+      <Dialog open={shareDialogOpen} onClose={closeShareDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Compartilhar Relatu00f3rio</DialogTitle>
+        <DialogContent>
+          {reportError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {reportError}
+            </Alert>
+          )}
+
+          {!reportData ? (
+            <>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                Gere um relatu00f3rio em PDF para compartilhar com o cliente. 
+                O relatu00f3rio estaru00e1 disponu00edvel por 7 dias atravu00e9s do link gerado.
+              </Typography>
+              
+              <TextField
+                label="Nome do Relatu00f3rio"
+                fullWidth
+                value={reportName}
+                onChange={(e) => setReportName(e.target.value)}
+                sx={{ mb: 2 }}
+                disabled={generatingReport}
+              />
+            </>
+          ) : (
+            <>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                Seu relatu00f3rio foi gerado com sucesso! Copie o link abaixo para compartilhar:
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, bgcolor: 'background.paper', p: 1, borderRadius: 1 }}>
+                <Typography variant="body2" sx={{ flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {window.location.origin + reportService.getReportDownloadUrl(reportData.reportUrl)}
+                </Typography>
+                <Tooltip title="Copiar link" arrow>
+                  <IconButton onClick={copyReportLink} color="primary">
+                    <FileCopyIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              <Typography variant="caption" color="text.secondary">
+                Este link expira em {moment(reportData.expiresAt).format('DD/MM/YYYY [às] HH:mm')}
+              </Typography>
+              
+              {reportLinkCopied && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  Link copiado para a u00e1rea de transferu00eancia!
+                </Alert>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {!reportData ? (
+            <>
+              <Button onClick={closeShareDialog} disabled={generatingReport}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={generateShareableReport} 
+                variant="contained" 
+                color="primary"
+                disabled={generatingReport}
+                startIcon={generatingReport ? <CircularProgress size={20} /> : <PictureAsPdfIcon />}
+              >
+                {generatingReport ? 'Gerando...' : 'Gerar Relatu00f3rio'}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={closeShareDialog} variant="contained" color="primary">
+              Fechar
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Notificau00e7u00e3o de link copiado */}
+      <Snackbar
+        open={reportLinkCopied}
+        autoHideDuration={3000}
+        onClose={() => setReportLinkCopied(false)}
+        message="Link copiado para a u00e1rea de transferu00eancia!"
+      />
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" component="h2">
           Dashboard de Métricas
@@ -263,6 +492,16 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
             disabled={loading || !metrics.length}
           >
             Gerar PDF
+          </Button>
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={openShareDialog}
+            startIcon={<ShareIcon />}
+            disabled={loading || !metrics.length}
+            title="Compartilhar relatório com cliente"
+          >
+            Compartilhar
           </Button>
         </Stack>
       </Box>
@@ -406,6 +645,22 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
             </Grid>
           </Grid>
           
+          {/* Terceira linha de cards com métricas adicionais */}
+          <Grid container spacing={3} sx={{ mb: 4, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)' }}>
+            <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
+              <Card>
+                <CardContent>
+                  <Typography color="text.secondary" gutterBottom>
+                    Compras
+                  </Typography>
+                  <Typography variant="h5" component="div">
+                    {totalMetrics.purchases?.toLocaleString() || "0"}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+          
           {/* Controles de seleção de métricas */}
           <Box sx={{ mb: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -449,6 +704,14 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     onClick={() => setSelectedMetrics(prev => ({...prev, conversions: !prev.conversions}))}
                   >
                     Conversões
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.purchases ? "contained" : "outlined"}
+                    color="primary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, purchases: !prev.purchases}))}
+                  >
+                    Compras
                   </Button>
                 </Stack>
               </Box>
@@ -523,8 +786,8 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip
-                      labelFormatter={(value) => {
+                    <RechartsTooltip
+                      labelFormatter={(value: any) => {
                         // Extrair componentes da data do valor numerico
                         const year = Math.floor(value / 10000);
                         const month = Math.floor((value % 10000) / 100);
@@ -544,6 +807,9 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     )}
                     {selectedMetrics.conversions && (
                       <Bar yAxisId="right" dataKey="conversions" name="Conversões" fill="#0088FE" />
+                    )}
+                    {selectedMetrics.purchases && (
+                      <Bar yAxisId="right" dataKey="purchases" name="Compras" fill="#8B008B" />
                     )}
                   </BarChart>
                 </ResponsiveContainer>
@@ -570,8 +836,8 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip
-                      labelFormatter={(value) => {
+                    <RechartsTooltip
+                      labelFormatter={(value: any) => {
                         // Extrair componentes da data do valor numerico
                         const year = Math.floor(value / 10000);
                         const month = Math.floor((value % 10000) / 100);

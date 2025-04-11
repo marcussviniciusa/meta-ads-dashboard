@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const metricsRoutes = require('./routes/metricsRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 // Conectar ao banco de dados
 connectDB();
@@ -48,6 +49,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/metrics', metricsRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Rota básica para teste da API
 app.get('/', (req, res) => {

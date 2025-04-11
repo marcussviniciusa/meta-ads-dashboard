@@ -41,7 +41,13 @@ const MetricsDataSchema = new mongoose.Schema(
       cost_per_unique_click: Number,
       conversions: Number,
       cost_per_conversion: Number,
-      conversion_rate: Number
+      conversion_rate: Number,
+      // Novos campos para armazenar dados de compras e au00e7u00f5es
+      purchases: Number,
+      actions: [{
+        action_type: String,
+        value: Number
+      }]
     },
     // Campo para armazenar qualquer métrica adicional fornecida pela API
     additionalMetrics: {
