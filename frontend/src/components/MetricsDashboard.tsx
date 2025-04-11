@@ -42,6 +42,20 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
   const [metrics, setMetrics] = useState<any[]>([]);
   const [totalMetrics, setTotalMetrics] = useState<any>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  
+  // Estado para controlar quais mu00e9tricas estu00e3o selecionadas para exibiu00e7u00e3o nos gru00e1ficos
+  const [selectedMetrics, setSelectedMetrics] = useState({
+    // Gru00e1fico de barras
+    impressions: true,
+    clicks: true,
+    reach: false,
+    conversions: false,
+    // Gru00e1fico de linha
+    spend: true,
+    ctr: true,
+    cpc: false,
+    cpm: false
+  });
 
   // Carregar métricas - usando useCallback para evitar recriação da função a cada renderização
   const loadMetrics = useCallback(async (forceRefresh = false) => {
@@ -208,8 +222,12 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
           dateNumber: parseInt(metricDate.format('YYYYMMDD')),
           impressions: item.metrics.impressions,
           clicks: item.metrics.clicks,
+          reach: item.metrics.reach || 0,
+          conversions: item.metrics.conversions || 0,
           spend: parseFloat(item.metrics.spend.toFixed(2)),
-          ctr: parseFloat((item.metrics.ctr).toFixed(2))
+          ctr: parseFloat((item.metrics.ctr).toFixed(2)),
+          cpc: item.metrics.cpc ? parseFloat(item.metrics.cpc.toFixed(2)) : 0,
+          cpm: item.metrics.cpm ? parseFloat(item.metrics.cpm.toFixed(2)) : 0
         };
       })
       // Ordenação por número para garantir a sequência correta
@@ -388,12 +406,106 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
             </Grid>
           </Grid>
           
+          {/* Controles de seleção de métricas */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Selecione as métricas para visualização:
+            </Typography>
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Gráfico 1 (Barras):
+                </Typography>
+                <Stack direction="row" spacing={2} flexWrap="wrap">
+                  <Button 
+                    variant={selectedMetrics.impressions ? "contained" : "outlined"}
+                    color="primary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, impressions: !prev.impressions}))}
+                  >
+                    Impressões
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.clicks ? "contained" : "outlined"}
+                    color="primary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, clicks: !prev.clicks}))}
+                  >
+                    Cliques
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.reach ? "contained" : "outlined"}
+                    color="primary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, reach: !prev.reach}))}
+                  >
+                    Alcance
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.conversions ? "contained" : "outlined"}
+                    color="primary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, conversions: !prev.conversions}))}
+                  >
+                    Conversões
+                  </Button>
+                </Stack>
+              </Box>
+              
+              <Box>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Gráfico 2 (Linhas):
+                </Typography>
+                <Stack direction="row" spacing={2} flexWrap="wrap">
+                  <Button 
+                    variant={selectedMetrics.spend ? "contained" : "outlined"}
+                    color="secondary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, spend: !prev.spend}))}
+                  >
+                    Gastos
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.ctr ? "contained" : "outlined"}
+                    color="secondary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, ctr: !prev.ctr}))}
+                  >
+                    CTR
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.cpc ? "contained" : "outlined"}
+                    color="secondary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, cpc: !prev.cpc}))}
+                  >
+                    CPC
+                  </Button>
+                  <Button 
+                    variant={selectedMetrics.cpm ? "contained" : "outlined"}
+                    color="secondary"
+                    size="small"
+                    onClick={() => setSelectedMetrics(prev => ({...prev, cpm: !prev.cpm}))}
+                  >
+                    CPM
+                  </Button>
+                </Stack>
+              </Box>
+            </Box>
+            
+            {/* Nota informativa */}
+            <Typography variant="caption" color="text.secondary">
+              Clique nas métricas acima para adicionar ou remover do gráfico correspondente.
+            </Typography>
+          </Box>
+          
           {/* Gráficos */}
           <Grid container spacing={3} sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)' }}>
             <Grid sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Impressões e Cliques ao Longo do Tempo
+                  Métricas de Volume ao Longo do Tempo
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
@@ -421,8 +533,18 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                       }}
                     />
                     <Legend />
-                    <Bar yAxisId="left" dataKey="impressions" name="Impressões" fill="#8884d8" />
-                    <Bar yAxisId="right" dataKey="clicks" name="Cliques" fill="#82ca9d" />
+                    {selectedMetrics.impressions && (
+                      <Bar yAxisId="left" dataKey="impressions" name="Impressões" fill="#8884d8" />
+                    )}
+                    {selectedMetrics.clicks && (
+                      <Bar yAxisId="right" dataKey="clicks" name="Cliques" fill="#82ca9d" />
+                    )}
+                    {selectedMetrics.reach && (
+                      <Bar yAxisId="left" dataKey="reach" name="Alcance" fill="#ff8042" />
+                    )}
+                    {selectedMetrics.conversions && (
+                      <Bar yAxisId="right" dataKey="conversions" name="Conversões" fill="#0088FE" />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </Paper>
@@ -430,7 +552,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
             <Grid sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Gastos e CTR ao Longo do Tempo
+                  Mu00e9tricas de Desempenho ao Longo do Tempo
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={chartData}>
@@ -458,21 +580,43 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                       }}
                     />
                     <Legend />
-                    <Line 
-                      yAxisId="left"
-                      type="monotone" 
-                      dataKey="spend" 
-                      name="Gastos (R$)" 
-                      stroke="#ff7300" 
-                      activeDot={{ r: 8 }} 
-                    />
-                    <Line 
-                      yAxisId="right"
-                      type="monotone" 
-                      dataKey="ctr" 
-                      name="CTR (%)" 
-                      stroke="#387908"
-                    />
+                    {selectedMetrics.spend && (
+                      <Line 
+                        yAxisId="left"
+                        type="monotone" 
+                        dataKey="spend" 
+                        name="Gastos (R$)" 
+                        stroke="#ff7300" 
+                        activeDot={{ r: 8 }} 
+                      />
+                    )}
+                    {selectedMetrics.ctr && (
+                      <Line 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="ctr" 
+                        name="CTR (%)" 
+                        stroke="#387908"
+                      />
+                    )}
+                    {selectedMetrics.cpc && (
+                      <Line 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="cpc" 
+                        name="CPC (R$)" 
+                        stroke="#0088FE"
+                      />
+                    )}
+                    {selectedMetrics.cpm && (
+                      <Line 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="cpm" 
+                        name="CPM (R$)" 
+                        stroke="#FF8042"
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </Paper>
