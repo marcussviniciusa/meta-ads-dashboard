@@ -103,6 +103,7 @@ const UsersPage = () => {
 
   // Carregar usuários e empresas
   useEffect(() => {
+    // Criar uma função para buscar dados apenas uma vez
     const fetchData = async () => {
       // Só executar na primeira renderização
       if (!isFirstRender.current) return;
@@ -123,14 +124,15 @@ const UsersPage = () => {
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
         setError('Ocorreu um erro ao carregar os usuários e empresas');
-        showError('Ocorreu um erro ao carregar os usuários e empresas');
+        // Não chamar showError dentro do useEffect para evitar dependencia cíclica
       } finally {
         setLoading(false);
       }
     };
     
     fetchData();
-  }, []); // Sem dependências para garantir que execute apenas uma vez
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Sem dependências e com comentario para eslint ignorar o aviso
 
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);

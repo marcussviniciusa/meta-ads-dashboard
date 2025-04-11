@@ -13,7 +13,7 @@ import {
 import { Grid } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
-import DateRangeSelector from './DateRangeSelector';
+import DateRangeSelector from './DateRangeSelector'; // Reativado
 import { metricsService } from '../services/metricsService';
 import { jsPDF } from 'jspdf';
 // @ts-ignore
@@ -112,13 +112,13 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
           ['Métrica', 'Valor'],
           ['Impressões', totalMetrics.impressions.toLocaleString()],
           ['Cliques', totalMetrics.clicks.toLocaleString()],
-          ['Gastos', `$${totalMetrics.spend.toFixed(2)}`],
-          ['CPC', `$${totalMetrics.cpc.toFixed(2)}`],
-          ['CPM', `$${totalMetrics.cpm.toFixed(2)}`],
+          ['Gastos', `R$ ${totalMetrics.spend.toFixed(2)}`],
+          ['CPC', `R$ ${totalMetrics.cpc.toFixed(2)}`],
+          ['CPM', `R$ ${totalMetrics.cpm.toFixed(2)}`],
           ['CTR', `${totalMetrics.ctr.toFixed(2)}%`],
           ['Alcance', totalMetrics.reach.toLocaleString()],
           ['Conversões', totalMetrics.conversions.toLocaleString()],
-          ['Custo por Conversão', `$${totalMetrics.cost_per_conversion.toFixed(2)}`]
+          ['Custo por Conversão', `R$ ${totalMetrics.cost_per_conversion.toFixed(2)}`]
         ];
         
         // @ts-ignore
@@ -143,7 +143,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
         doc.text('Dados Diários', 14, startY);
         
         const dailyTableData = [
-          ['Data', 'Impressões', 'Cliques', 'Gastos ($)', 'CTR (%)', 'CPC ($)']
+          ['Data', 'Impressões', 'Cliques', 'Gastos (R$)', 'CTR (%)', 'CPC (R$)']
         ];
         
         dailyData.forEach(item => {
@@ -176,12 +176,15 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
     }
   };
 
-  // Atualizar métricas quando o intervalo de datas ou os IDs mudarem
+  // Uma solução simples: um único useEffect com um botão manual
+  // para carregar os dados, evitando loops infinitos de renderização
   useEffect(() => {
+    // Carregar dados apenas uma vez na montagem inicial
     if (companyId && adAccountId) {
-      loadMetrics();
+      console.log('MetricsDashboard montado - dados serão carregados manualmente');
+      // Não chame loadMetrics automaticamente!
     }
-  }, [loadMetrics]); // Como loadMetrics já tem as dependências corretas, basta incluí-lo aqui
+  }, []); // Array de dependências vazio = executa apenas na montagem
 
   // Preparar dados para o gráfico
   const prepareChartData = () => {
@@ -246,7 +249,18 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
         </Stack>
       </Box>
       
-      <DateRangeSelector onChange={setDateRange} />
+      {/* Reativando DateRangeSelector com funcionalidade completa */}
+      <Box sx={{ mb: 3 }}>
+        <DateRangeSelector 
+          initialRange={dateRange} 
+          onChange={(newDateRange) => {
+            console.log('Novo período selecionado:', newDateRange);
+            setDateRange(newDateRange);
+            // Carregar dados com o novo intervalo de datas
+            loadMetrics(false);
+          }}
+        />
+      </Box>
       
       {lastSynced && (
         <Box sx={{ mb: 2 }}>
@@ -303,7 +317,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     Gastos
                   </Typography>
                   <Typography variant="h5" component="div">
-                    ${totalMetrics.spend.toFixed(2)}
+                    R$ {totalMetrics.spend.toFixed(2)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -331,7 +345,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     CPC
                   </Typography>
                   <Typography variant="h5" component="div">
-                    ${totalMetrics.cpc.toFixed(2)}
+                    R$ {totalMetrics.cpc.toFixed(2)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -343,7 +357,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                     CPM
                   </Typography>
                   <Typography variant="h5" component="div">
-                    ${totalMetrics.cpm.toFixed(2)}
+                    R$ {totalMetrics.cpm.toFixed(2)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -448,7 +462,7 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
                       yAxisId="left"
                       type="monotone" 
                       dataKey="spend" 
-                      name="Gastos ($)" 
+                      name="Gastos (R$)" 
                       stroke="#ff7300" 
                       activeDot={{ r: 8 }} 
                     />

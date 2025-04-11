@@ -17,12 +17,19 @@ exports.getCompanies = asyncHandler(async (req, res, next) => {
 
 // @desc    Obter uma empresa específica
 // @route   GET /api/companies/:id
-// @access  Private/SuperAdmin
+// @access  Private (Com verificação de acesso por empresa)
 exports.getCompany = asyncHandler(async (req, res, next) => {
   const company = await Company.findById(req.params.id);
 
   if (!company) {
     return next(new ErrorResponse(`Empresa não encontrada com id ${req.params.id}`, 404));
+  }
+
+  // Verificar se o usuário tem permissão para acessar esta empresa
+  // Superadmins podem acessar qualquer empresa, usuários comuns apenas a sua própria
+  if (req.user.role !== 'superadmin' && req.user.company?.toString() !== req.params.id) {
+    console.log(`Acesso negado: usuário ${req.user.id} tentando acessar empresa ${req.params.id}, mas pertence a ${req.user.company}`);
+    return next(new ErrorResponse('Sem permissão para acessar esta empresa', 403));
   }
 
   res.status(200).json({

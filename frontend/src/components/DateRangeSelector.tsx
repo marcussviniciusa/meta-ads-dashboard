@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Box, 
   FormControl, 
@@ -34,39 +34,42 @@ const DateRangeSelector = ({ onChange, initialRange }: DateRangeSelectorProps) =
     endDate: moment().format('YYYY-MM-DD'),
   });
 
-  // Inicializar com o valor inicial se disponível
-  useEffect(() => {
-    if (initialRange) {
-      setDateRange(initialRange);
-      
-      // Determinar o tipo de intervalo com base nas datas iniciais
-      const start = moment(initialRange.startDate);
-      const end = moment(initialRange.endDate);
-      
-      if (moment(start).isSame(moment(), 'day') && moment(end).isSame(moment(), 'day')) {
-        setRangeType('today');
-      } else if (moment(start).isSame(moment().subtract(1, 'day'), 'day') && 
-                moment(end).isSame(moment().subtract(1, 'day'), 'day')) {
-        setRangeType('yesterday');
-      } else if (moment(start).isSame(moment().subtract(7, 'days'), 'day') && 
-                moment(end).isSame(moment(), 'day')) {
-        setRangeType('last7days');
-      } else if (moment(start).isSame(moment().subtract(30, 'days'), 'day') && 
-                moment(end).isSame(moment(), 'day')) {
-        setRangeType('last30days');
-      } else if (moment(start).isSame(moment().startOf('month'), 'day') && 
-                moment(end).isSame(moment(), 'day')) {
-        setRangeType('thisMonth');
-      } else if (moment(start).isSame(moment().subtract(1, 'month').startOf('month'), 'day') && 
-                moment(end).isSame(moment().subtract(1, 'month').endOf('month'), 'day')) {
-        setRangeType('lastMonth');
-      } else {
-        setRangeType('custom');
-        setCustomStartDate(start);
-        setCustomEndDate(end);
-      }
+  // Inicializau00e7u00e3o sem useEffect para evitar loops infinitos
+  // Usamos um flag estuo00e1tico para garantir que isso rodar apenas uma vez
+  const initialized = useRef(false);
+  
+  if (initialRange && !initialized.current) {
+    initialized.current = true;
+    // Define estado interno sem chamar callbacks
+    const start = moment(initialRange.startDate);
+    const end = moment(initialRange.endDate);
+    
+    // Não fazemos setDateRange aqui para evitar loops
+    // Apenas configuramos as outras variáveis de estado
+    
+    if (moment(start).isSame(moment(), 'day') && moment(end).isSame(moment(), 'day')) {
+      setRangeType('today');
+    } else if (moment(start).isSame(moment().subtract(1, 'day'), 'day') && 
+              moment(end).isSame(moment().subtract(1, 'day'), 'day')) {
+      setRangeType('yesterday');
+    } else if (moment(start).isSame(moment().subtract(7, 'days'), 'day') && 
+              moment(end).isSame(moment(), 'day')) {
+      setRangeType('last7days');
+    } else if (moment(start).isSame(moment().subtract(30, 'days'), 'day') && 
+              moment(end).isSame(moment(), 'day')) {
+      setRangeType('last30days');
+    } else if (moment(start).isSame(moment().startOf('month'), 'day') && 
+              moment(end).isSame(moment(), 'day')) {
+      setRangeType('thisMonth');
+    } else if (moment(start).isSame(moment().subtract(1, 'month').startOf('month'), 'day') && 
+              moment(end).isSame(moment().subtract(1, 'month').endOf('month'), 'day')) {
+      setRangeType('lastMonth');
+    } else {
+      setRangeType('custom');
+      setCustomStartDate(start);
+      setCustomEndDate(end);
     }
-  }, [initialRange]);
+  }
 
   // Atualiza o intervalo de datas com base no tipo selecionado
   const updateDateRange = (type: DateRangeType) => {

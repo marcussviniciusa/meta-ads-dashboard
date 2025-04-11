@@ -27,6 +27,7 @@ interface AuthResponse {
     name: string;
     email: string;
     role: string;
+    company?: string; // Adicionar campo de empresa ao tipo de resposta
   };
 }
 
@@ -41,7 +42,18 @@ export const authService = {
     const response = await api.post<AuthResponse>('/auth/login', credentials);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Assegurar que o objeto user tenha todos os campos necessários
+      // Usando o getCurrentUser para obter todos os dados completos do usuário
+      try {
+        const userResponse = await api.get('/auth/me');
+        const fullUserData = userResponse.data.data;
+        console.log('Dados completos do usuário obtidos após login:', fullUserData);
+        localStorage.setItem('user', JSON.stringify(fullUserData));
+      } catch (error) {
+        console.error('Erro ao obter dados completos do usuário, usando dados parciais:', error);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
     }
     return response.data;
   },
@@ -68,7 +80,16 @@ export const authService = {
 
   getUser(): any {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    if (!user) return null;
+    
+    try {
+      const userData = JSON.parse(user);
+      console.log('Dados do usuário recuperados do localStorage:', userData);
+      return userData;
+    } catch (error) {
+      console.error('Erro ao fazer parse dos dados do usuário:', error);
+      return null;
+    }
   },
 
   isSuperAdmin(): boolean {

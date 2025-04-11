@@ -23,7 +23,7 @@ router
 
 router
   .route('/:id')
-  .get(authorize('superadmin'), getCompany)
+  .get(getCompany) // Permitir que qualquer usuário autenticado acesse os detalhes da empresa
   .put(authorize('superadmin'), updateCompany)
   .delete(authorize('superadmin'), deleteCompany);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Box, 
   Card, 
@@ -10,7 +10,8 @@ import {
   Select, 
   CircularProgress,
   Alert,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Typography
 } from '@mui/material';
 import Layout from '../components/Layout';
 import MetricsDashboard from '../components/MetricsDashboard';
@@ -41,41 +42,97 @@ const DashboardPage = () => {
   const isSuperAdmin = authService.isSuperAdmin();
 
   // Carregar empresas e contas de anúncios
+  const dataFetchedRef = useRef(false);
+  
+  // Log para debugging
+  console.log('Estado atual do dashboard:', { 
+    isSuperAdmin, 
+    selectedCompany, 
+    accounts, 
+    selectedAccount,
+    dataFetched: dataFetchedRef.current
+  });
+
   useEffect(() => {
+    // Se já carregou, não carrega novamente
+    if (dataFetchedRef.current) {
+      console.log('Os dados já foram carregados anteriormente, pulando fetchData');
+      return;
+    }
+
+    console.log('Iniciando carregamento de dados, carregará apenas uma vez');
+
     // Função para buscar dados na API
     const fetchData = async () => {
       try {
+        console.log('Executando fetchData');
         setLoading(true);
         setError(null);
+
+        // Se for usuário comum e não tiver empresa definida, não podemos carregar nada
+        if (!isSuperAdmin && (!user || !user.company)) {
+          console.log('[DashboardPage] Usuário não tem empresa associada');
+          return;
+        }
         
         // Se for superadmin, carregar todas as empresas
         // Se for usuário comum, carregar apenas sua empresa
-        let companiesData: Company[] = [];
-        
         if (isSuperAdmin) {
           console.log('[DashboardPage] Buscando todas as empresas');
           const response = await api.get('/companies');
-          companiesData = response.data.data;
-        } else if (user && user.company) {
-          console.log('[DashboardPage] Buscando empresa específica do usuário');
-          const response = await api.get(`/companies/${user.company}`);
-          companiesData = [response.data.data];
-          // Selecionar automaticamente a única empresa do usuário
-          setSelectedCompany(response.data.data._id);
-        }
-        
-        setCompanies(companiesData);
-        
-        // Se houver apenas uma empresa, selecioná-la automaticamente
-        if (companiesData.length === 1 && !selectedCompany) {
-          setSelectedCompany(companiesData[0]._id);
-          setAccounts(companiesData[0].metaAdAccounts || []);
+          const companiesData = response.data.data;
           
-          // Se houver apenas uma conta de anúncios, selecioná-la automaticamente
-          if (companiesData[0].metaAdAccounts && companiesData[0].metaAdAccounts.length === 1) {
-            setSelectedAccount(companiesData[0].metaAdAccounts[0].accountId);
+          // Atualizar o estado com as empresas carregadas
+          setCompanies(companiesData);
+          
+          // Se houver apenas uma empresa para o superadmin, selecionar automaticamente
+          if (companiesData.length === 1) {
+            const company = companiesData[0];
+            console.log('[DashboardPage] Selecionando automaticamente a única empresa para superadmin:', company.name);
+            
+            // Definir empresa selecionada e suas contas
+            setSelectedCompany(company._id);
+            
+            // Garantir que metaAdAccounts seja um array
+            const adAccounts = Array.isArray(company.metaAdAccounts) ? company.metaAdAccounts : [];
+            setAccounts(adAccounts);
+            
+            // Se houver apenas uma conta de anúncios, selecioná-la automaticamente
+            if (adAccounts.length === 1) {
+              const account = adAccounts[0];
+              console.log('[DashboardPage] Selecionando automaticamente a única conta:', account.name);
+              setSelectedAccount(account.accountId);
+            }
+          }
+        } else {
+          // Carregar a empresa do usuário normal
+          console.log('[DashboardPage] Buscando empresa específica do usuário:', user.company);
+          const response = await api.get(`/companies/${user.company}`);
+          const companyData = response.data.data;
+          
+          // Logs detalhados para debug
+          console.log('[DashboardPage] Dados completos da empresa:', JSON.stringify(companyData, null, 2));
+          
+          // Garantir que metaAdAccounts seja um array
+          const adAccounts = Array.isArray(companyData.metaAdAccounts) ? companyData.metaAdAccounts : [];
+          console.log('[DashboardPage] Contas de anúncio encontradas:', adAccounts.length);
+
+          // Definir todos os estados relevantes ao mesmo tempo
+          setCompanies([companyData]);
+          setSelectedCompany(companyData._id);
+          setAccounts(adAccounts);
+          
+          // Se houver pelo menos uma conta, selecioná-la automaticamente
+          if (adAccounts.length > 0) {
+            console.log('[DashboardPage] Selecionando a primeira conta:', adAccounts[0].accountId, adAccounts[0].name);
+            setSelectedAccount(adAccounts[0].accountId);
+          } else {
+            console.log('[DashboardPage] ALERTA: A empresa não tem contas de anúncio!');
           }
         }
+        
+        // Marcar que os dados foram carregados com sucesso apenas DEPOIS de processar tudo
+        dataFetchedRef.current = true;
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
         setError('Ocorreu um erro ao carregar as empresas e contas de anúncios');
@@ -85,9 +142,8 @@ const DashboardPage = () => {
     };
     
     fetchData();
-    // Importante: adicionamos setError como dependência para evitar chamadas repetidas
-    // por causa de operações de setError que resultam em re-renderizações
-  }, [user, isSuperAdmin, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Remover todas as dependências para garantir que execute apenas uma vez
 
   // Atualizar contas de anúncios quando a empresa mudar
   const handleCompanyChange = (event: SelectChangeEvent<string>) => {
@@ -146,26 +202,44 @@ const DashboardPage = () => {
               )}
 
               <Grid sx={{ gridColumn: { xs: 'span 12', md: isSuperAdmin ? 'span 6' : 'span 12' } }}>
+                {/* Debug info */}
+                <Box sx={{ mb: 1, display: 'none' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Debug: SelectedCompany: {selectedCompany}, Accounts: {accounts.length}, SelectedAccount: {selectedAccount}
+                  </Typography>
+                </Box>
+                
                 <FormControl fullWidth variant="outlined">
                   <InputLabel>Conta de Anúncios</InputLabel>
                   <Select
                     value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
+                    onChange={(e) => {
+                      console.log('Selecionando conta:', e.target.value);
+                      setSelectedAccount(e.target.value);
+                    }}
                     label="Conta de Anúncios"
-                    disabled={loading || !selectedCompany || accounts.length === 0}
+                    // Remover a condição accounts.length === 0 para garantir que sempre
+                    // seja possível selecionar mesmo que não tenha sido carregado ainda
+                    disabled={loading || !selectedCompany}
                   >
                     <MenuItem value="">
                       <em>Selecione uma conta</em>
                     </MenuItem>
-                    {accounts.map((account) => (
-                      <MenuItem 
-                        key={account.accountId} 
-                        value={account.accountId}
-                        disabled={account.status !== 'active'}
-                      >
-                        {account.name || account.accountId}
+                    {accounts.length > 0 ? (
+                      accounts.map((account) => (
+                        <MenuItem 
+                          key={account.accountId} 
+                          value={account.accountId}
+                          disabled={account.status !== 'active'}
+                        >
+                          {account.name || account.accountId}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem value="" disabled>
+                        <em>Sem contas disponíveis</em>
                       </MenuItem>
-                    ))}
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
