@@ -4,6 +4,10 @@ export interface GenerateReportParams {
   startDate: string;
   endDate: string;
   reportName?: string;
+  selectedMetrics?: string[];
+  selectedCharts?: string[];
+  includeGraphics?: boolean;
+  theme?: 'default' | 'modern' | 'minimal';
 }
 
 export interface ReportData {
@@ -15,11 +19,11 @@ export interface ReportData {
 
 export const reportService = {
   /**
-   * Gera um relatu00f3rio PDF com as mu00e9tricas do peru00edodo especificado
+   * Gera um relatório PDF com as métricas do período especificado
    * @param companyId ID da empresa
-   * @param adAccountId ID da conta de anu00fancios
-   * @param params Paru00e2metros do relatu00f3rio
-   * @returns Informau00e7u00f5es do relatu00f3rio gerado, incluindo link compartilhu00e1vel
+   * @param adAccountId ID da conta de anúncios
+   * @param params Parâmetros do relatório
+   * @returns Informações do relatório gerado, incluindo link compartilhável
    */
   async generateReport(companyId: string, adAccountId: string, params: GenerateReportParams) {
     const response = await api.post(`/reports/generate/${companyId}/${adAccountId}`, params);
@@ -27,13 +31,33 @@ export const reportService = {
   },
 
   /**
-   * Retorna o URL completo para download do relatu00f3rio
-   * @param reportUrl URL relativa do relatu00f3rio
+   * Retorna o URL completo para download do relatório
+   * @param reportUrl URL relativa do relatório
    * @returns URL completa para download
    */
   getReportDownloadUrl(reportUrl: string): string {
-    // Remover a barra inicial se estiver presente
+    // Se a URL já estiver completa, retorna ela mesma
+    if (reportUrl.startsWith('http')) {
+      return reportUrl;
+    }
+    
+    // Obter o host base da aplicação
+    const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+    
+    // Limpar a URL (remover a barra inicial se existir)
     const cleanUrl = reportUrl.startsWith('/') ? reportUrl.substring(1) : reportUrl;
-    return `${import.meta.env.VITE_API_URL}/${cleanUrl}`;
+    
+    // Verificar se é uma URL para arquivo PDF (formato /reports/file.pdf)
+    if (cleanUrl.includes('reports/') && cleanUrl.endsWith('.pdf')) {
+      // Caminho direto para o arquivo estático
+      return `${baseUrl}/${cleanUrl}`;
+    }
+    
+    // Para outros casos (endpoints da API), adicionar prefixo /api/ se necessário
+    if (!cleanUrl.startsWith('api/')) {
+      return `${baseUrl}/api/${cleanUrl}`;
+    }
+    
+    return `${baseUrl}/${cleanUrl}`;
   }
 };

@@ -299,7 +299,7 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
   
   // Título destacado
   doc.fontSize(16)
-     .font(`${themeStyles.title.font}-Bold`)  // Garantir negrito
+     .font('Helvetica-Bold')  // Garantir negrito
      .fillColor('#FFFFFF')  // Branco para contraste
      .text(formattedReportName, 50, 20, {
         align: 'center',
@@ -314,7 +314,7 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
   
   // Estilo visual para as informações de cabeçalho
   doc.fontSize(8)
-     .font(`${themeStyles.text.font}-Bold`)
+     .font('Helvetica-Bold')
      .fillColor('#333333')
      .text('Período:', 50, infoY, { continued: true })
      .font(themeStyles.text.font)
@@ -377,6 +377,17 @@ if (chartPaths.length > 0) {
       doc.addPage();
       chartY = 30;
     }
+    
+    // Criar uma área com fundo claro para os gráficos desta linha
+    doc.rect(50, chartY, 500, rowHeight - 10)
+       .fillColor('#F9FAFB')
+       .fill();
+    
+    // Adicionar o primeiro gráfico desta linha
+    try {
+      const firstChart = chartPaths[i];
+      const chartWidth = 240;
+    
     // Para cada linha de gráficos (2 por linha)
     for (let i = 0; i < chartPaths.length; i += 2) {
       // Determinar a altura desta linha

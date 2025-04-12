@@ -3,7 +3,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const connectDB = require('./config/database');
+const fs = require('fs');
 require('dotenv').config();
+const path = require('path');
 
 // Importar rotas
 const authRoutes = require('./routes/authRoutes');
@@ -22,7 +24,27 @@ const app = express();
 app.use(express.json());
 
 // Middleware de segurança
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false // Desabilitar CSP para permitir download de PDFs
+}));
+
+// Configuração para servir arquivos estáticos
+// Os arquivos em /public/reports serão acessíveis como /reports/arquivo.pdf
+app.use('/reports', express.static(path.join(__dirname, 'public/reports'), {
+  setHeaders: (res, filePath) => {
+    if (path.extname(filePath) === '.pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  }
+}));
+
+// Criar diretório para relatórios se não existir
+const publicReportsDir = path.join(__dirname, 'public/reports');
+if (!fs.existsSync(publicReportsDir)) {
+  fs.mkdirSync(publicReportsDir, { recursive: true });
+}
+// Configuração já definida acima
 
 // Habilitar CORS
 app.use(cors());

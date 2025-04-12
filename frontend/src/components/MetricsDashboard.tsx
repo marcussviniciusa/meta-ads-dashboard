@@ -19,11 +19,13 @@ import {
   Snackbar
 } from '@mui/material';
 import { Grid } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import ShareIcon from '@mui/icons-material/Share';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import TuneIcon from '@mui/icons-material/Tune';
 import DateRangeSelector from './DateRangeSelector'; // Reativado
 import { metricsService } from '../services/metricsService';
 import { reportService } from '../services/reportService';
@@ -45,6 +47,7 @@ interface DateRange {
 }
 
 const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDashboardProps) => {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: moment().subtract(30, 'days').format('YYYY-MM-DD'),
     endDate: moment().format('YYYY-MM-DD')
@@ -381,6 +384,11 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
 
   const chartData = prepareChartData();
 
+  // Navegar para o gerador de relatórios personalizado
+  const navigateToCustomReportGenerator = () => {
+    navigate(`/reports/generate/${companyId}/${adAccountId}`);
+  };
+
   return (
     <Box>
       {/* Diu00e1logo de compartilhamento */}
@@ -502,6 +510,16 @@ const MetricsDashboard = ({ companyId, adAccountId, adAccountName }: MetricsDash
             title="Compartilhar relatório com cliente"
           >
             Compartilhar
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<TuneIcon />}
+            onClick={navigateToCustomReportGenerator}
+            disabled={loading || !metrics.length}
+            title="Relatório personalizado com seleção de métricas e gráficos"
+          >
+            Relatório Personalizado
           </Button>
         </Stack>
       </Box>
