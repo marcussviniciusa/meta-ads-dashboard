@@ -1,0 +1,109 @@
+version: "3.7"
+services:
+  meta-ads-backend:
+    image: marcussviniciusa/speedfunnels-backend:v1
+    environment:
+      # Configurações da aplicação
+      - NODE_ENV=production
+      - PORT=5000
+      - JWT_EXPIRES_IN=7d
+      - META_API_VERSION=v22.0
+      - META_REDIRECT_URI=https://api.speedfunnels.online/api/auth/meta/callback
+      - FORCE_REAL_DATA=true
+      
+      # Credenciais e segredos
+      - MONGODB_URI=mongodb://admin:4f4f49cc55e4ba2667873c2e8e97e1d6@mongodb:27017/speedfunnels?authSource=admin
+      - JWT_SECRET=45aab33419d55426e0276078dd8b16eac990c163afab0f20645d976cd92c80eb96
+      - META_APP_ID=4190441111244279
+      - META_APP_SECRET=8ef5ee9f87897877584e8c7f27a2171c
+      - FACEBOOK_ACCESS_TOKEN=EAAO3H7FYqKkBO7qMPkiWj6F1160R0tj16awGusEXJCgb8uadrONyVgh5S1h3fp2zVTGcwiyAfFaVZBPV4vHFCagbdZAZA5DXZC0mcmO4jSg3fv4p04ZBoiKiTz1M63ZAfFkTtGN2umjR5O6baIB97tjLoO1EZAX391J5KLR6goiRDwzrCCBFZATQL53uiPbZAPg8U1ow8ZCLl62JPGS1tl8laIZB86mU0EZD
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      # Persistência de dados
+      - meta_ads_images:/app/public/ad-images
+      - meta_ads_logs:/app/logs
+    networks:
+      - SpeedFunnelsNet
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1024M
+    labels:
+      # Configurações básicas do Traefik
+      - traefik.enable=true
+      - traefik.docker.network=SpeedFunnelsNet
+      
+      # Configuração do router
+      - traefik.http.routers.meta-backend.rule=Host(`api.speedfunnels.online`)
+      - traefik.http.routers.meta-backend.entrypoints=websecure
+      - traefik.http.routers.meta-backend.tls=true
+      - traefik.http.routers.meta-backend.tls.certresolver=letsencryptresolver
+      
+      # Configuração do serviço e porta
+      - traefik.http.services.meta-backend.loadbalancer.server.port=5000
+      
+      # Middlewares - strip prefix, compressão e CORS
+      - traefik.http.middlewares.meta-backend-prefix.stripprefix.prefixes=/api
+      - traefik.http.middlewares.meta-backend-compress.compress=true
+      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS
+      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolallowheaders=Content-Type,Authorization
+      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolalloworiginlist=https://app.speedfunnels.online
+      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolmaxage=100
+      - traefik.http.middlewares.meta-backend-cors.headers.addvaryheader=true
+      - traefik.http.routers.meta-backend.middlewares=meta-backend-prefix@docker,meta-backend-compress@docker,meta-backend-cors@docker
+
+  meta-ads-frontend:
+    image: marcussviniciusa/speedfunnels-frontend:v1
+    depends_on:
+      - meta-ads-backend
+    networks:
+      - SpeedFunnelsNet
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    labels:
+      # Configurações básicas do Traefik
+      - traefik.enable=true
+      - traefik.docker.network=SpeedFunnelsNet
+      
+      # Configuração do router
+      - traefik.http.routers.meta-frontend.rule=Host(`app.speedfunnels.online`)
+      - traefik.http.routers.meta-frontend.entrypoints=websecure
+      - traefik.http.routers.meta-frontend.tls=true
+      - traefik.http.routers.meta-frontend.tls.certresolver=letsencryptresolver
+      
+      # Configuração do serviço e porta
+      - traefik.http.services.meta-frontend.loadbalancer.server.port=80
+      
+      # Middlewares - compressão e redirecionamento
+      - traefik.http.middlewares.meta-frontend-compress.compress=true
+      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.regex=^https://app.speedfunnels.online/(?:login|register|dashboard|reports|ad-previews|settings|account|notifications)$$
+      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.replacement=https://app.speedfunnels.online/
+      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.permanent=true
+      - traefik.http.routers.meta-frontend.middlewares=meta-frontend-compress@docker,meta-frontend-redirect@docker
+
+# Volumes para persistência de dados
+volumes:
+  meta_ads_images:
+    external: true
+    name: meta_ads_images
+  meta_ads_logs:
+    external: true
+    name: meta_ads_logs
+
+# Definição das redes
+networks:
+  SpeedFunnelsNet:
+    external: true
+    name: SpeedFunnelsNet

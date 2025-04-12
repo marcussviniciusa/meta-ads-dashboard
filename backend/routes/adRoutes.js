@@ -6,23 +6,35 @@ require('dotenv').config();
 
 // Função para gerar dados mock de anúncios
 const generateMockAds = () => {
+  // Criar anúncios com datas distribuídas nos últimos 60 dias
+  const now = new Date();
+  
   return {
-    data: Array(10).fill().map((_, index) => ({
-      id: `ad_${index}`,
-      name: `Anúncio de Teste ${index + 1}`,
-      status: 'ACTIVE',
-      effective_status: 'ACTIVE',
-      preview_url: `https://www.facebook.com/ads/archive/render_ad/?id=${100000000000 + index}`,
-      insights: {
-        data: [{
-          impressions: Math.floor(Math.random() * 10000),
-          clicks: Math.floor(Math.random() * 500),
-          ctr: (Math.random() * 5).toFixed(2),
-          cpc: (Math.random() * 2 + 0.5).toFixed(2),
-          spend: (Math.random() * 1000 + 100).toFixed(2)
-        }]
-      }
-    }))
+    data: Array(20).fill().map((_, index) => {
+      // Distribuir as datas aleatoriamente nos últimos 60 dias
+      const daysAgo = Math.floor(Math.random() * 60);
+      const createdDate = new Date(now);
+      createdDate.setDate(createdDate.getDate() - daysAgo);
+      
+      return {
+        id: `ad_${index}`,
+        name: `Anúncio de Teste ${index + 1}`,
+        status: Math.random() > 0.7 ? 'PAUSED' : 'ACTIVE',
+        effective_status: Math.random() > 0.7 ? 'PAUSED' : 'ACTIVE',
+        preview_url: `https://www.facebook.com/ads/archive/render_ad/?id=${100000000000 + index}`,
+        created_time: createdDate.toISOString(),
+        updated_time: new Date(createdDate.getTime() + Math.random() * 86400000 * 5).toISOString(),
+        insights: {
+          data: [{
+            impressions: Math.floor(Math.random() * 10000),
+            clicks: Math.floor(Math.random() * 500),
+            ctr: (Math.random() * 5).toFixed(2),
+            cpc: (Math.random() * 2 + 0.5).toFixed(2),
+            spend: (Math.random() * 1000 + 100).toFixed(2)
+          }]
+        }
+      };
+    })
   };
 };
 
@@ -40,7 +52,9 @@ router.get('/:adAccountId', protect, async (req, res) => {
   
   try {
     const { adAccountId } = req.params;
-    const { limit } = req.query;
+    const { limit, startDate, endDate } = req.query;
+    
+    console.log('Parâmetros de filtro por data:', { startDate, endDate });
     
     // Verificar se temos um token de acesso do Facebook
     if (!process.env.FACEBOOK_ACCESS_TOKEN) {
@@ -54,7 +68,8 @@ router.get('/:adAccountId', protect, async (req, res) => {
     
     // Definir campos expandidos para obter informações completas dos anúncios
     // Ignorar o parâmetro fields enviado pelo frontend
-    const expandedFields = 'name,status,effective_status,preview_url,creative{thumbnail_url,image_url,body,object_url},adcreatives{thumbnail_url,image_url},adlabels,insights';
+    // Adicionar created_time e updated_time para permitir filtragem por data
+    const expandedFields = 'name,status,effective_status,preview_url,created_time,updated_time,creative{thumbnail_url,image_url,body,object_url},adcreatives{thumbnail_url,image_url},adlabels,insights';
 
     // Construir a URL para a API do Facebook
     // Adicionar prefixo 'act_' se ainda não tiver
@@ -65,11 +80,33 @@ router.get('/:adAccountId', protect, async (req, res) => {
     const queryParams = new URLSearchParams({
       access_token: process.env.FACEBOOK_ACCESS_TOKEN,
       fields: expandedFields,
-      limit: limit || 20
-    }).toString();
+      limit: limit || 50
+    });
+    
+    // Adicionar filtros de data se fornecidos
+    if (startDate) {
+      queryParams.append('filtering', JSON.stringify([{
+        field: 'created_time',
+        operator: 'GREATER_THAN_OR_EQUAL',
+        value: new Date(startDate).toISOString()
+      }]));
+    }
+    
+    if (endDate) {
+      const nextDay = new Date(endDate);
+      nextDay.setDate(nextDay.getDate() + 1); // Incluir o dia final completo
+      
+      queryParams.append('filtering', JSON.stringify([{
+        field: 'created_time',
+        operator: 'LESS_THAN',
+        value: nextDay.toISOString()
+      }]));
+    }
+    
+    const queryString = queryParams.toString();
 
     // Construir a URL completa para a requisição
-    const fullUrl = `${apiUrl}?${queryParams}`;
+    const fullUrl = `${apiUrl}?${queryString}`;
     
     // Log mais claro da requisição sendo feita
     console.log('======== REQUISIÇÃO PARA API DO FACEBOOK ========');
@@ -77,7 +114,9 @@ router.get('/:adAccountId', protect, async (req, res) => {
     console.log(`Parâmetros: ${JSON.stringify({
       access_token: '[REDACTED]',
       fields: expandedFields,
-      limit: limit || 20
+      limit: limit || 50,
+      startDate: startDate || 'não especificado',
+      endDate: endDate || 'não especificado'
     }, null, 2)}`);
     
     // Fazer a requisição para a API do Facebook

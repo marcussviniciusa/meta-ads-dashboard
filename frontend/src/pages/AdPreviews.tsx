@@ -15,7 +15,12 @@ import {
   CircularProgress,
   SelectChangeEvent,
   Chip,
+  Button,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ptBR from 'date-fns/locale/pt-BR';
 import Layout from '../components/Layout';
 import api from '../services/api';
 import authService from '../services/authService';
@@ -183,15 +188,12 @@ const AdPreviewImage: React.FC<{ previewUrl: string, adName: string }> = ({ prev
           onError={handleError}
           onLoad={handleLoad}
           style={{ 
-            objectFit: 'contain',
+            objectFit: 'cover',
             display: 'block',
             backgroundColor: '#ffffff',
-            width: 'auto',
-            height: 'auto',
-            maxWidth: '100%',
-            maxHeight: '280px',
+            width: '100%',
+            height: '100%',
             border: '1px solid #eaeaea',
-            padding: '5px',
             borderRadius: '4px'
           }}
         />
@@ -230,6 +232,11 @@ const AdPreviews: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estados para filtro de data
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [dateFilterApplied, setDateFilterApplied] = useState(false);
 
   // Carregar empresas ao montar o componente
   useEffect(() => {
@@ -297,13 +304,26 @@ const AdPreviews: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setDateFilterApplied(false); // Reseta o estado do filtro de data
       
       console.log('Buscando anúncios para a conta:', selectedAccount);
       
+      // Preparar parâmetros da requisição
+      const params: any = {
+        limit: 50 // Aumentamos o limite para ter mais dados para filtrar
+      };
+      
+      // Adicionar datas se estiverem presentes
+      if (startDate) {
+        params.startDate = startDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+      }
+      
+      if (endDate) {
+        params.endDate = endDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+      }
+      
       const response = await api.get(`/ads/${selectedAccount}`, {
-        params: {
-          limit: 20
-        }
+        params
       });
       
       // Verificar se a resposta indica que são dados simulados
@@ -409,16 +429,40 @@ const AdPreviews: React.FC = () => {
     }
   };
 
-  // Filtrar anúncios com base no termo de busca
+  // Filtrar anúncios com base no termo de busca e datas
   const filterAds = () => {
-    if (!searchTerm.trim()) {
-      setFilteredAds(ads);
-      return;
+    // Começar com todos os anúncios
+    let filtered = [...ads];
+    
+    // Aplicar filtro de texto se existir
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(ad => 
+        ad.name.toLowerCase().includes(term) || 
+        ad.status.toLowerCase().includes(term)
+      );
     }
     
-    const filtered = ads.filter(ad => 
-      ad.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Aplicar filtro de data se o botão de filtro tiver sido clicado
+    if (dateFilterApplied) {
+      if (startDate) {
+        filtered = filtered.filter(ad => {
+          const adDate = new Date(ad.createdAt);
+          return adDate >= startDate;
+        });
+      }
+      
+      if (endDate) {
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1); // Incluir o dia final completo
+        
+        filtered = filtered.filter(ad => {
+          const adDate = new Date(ad.createdAt);
+          return adDate < nextDay;
+        });
+      }
+    }
+    
     setFilteredAds(filtered);
   };
 
@@ -434,6 +478,20 @@ const AdPreviews: React.FC = () => {
   // Handler para mudança no campo de busca
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+  };
+  
+  // Handler para aplicar filtro de data
+  const handleDateFilterApply = () => {
+    setDateFilterApplied(true);
+    filterAds();
+  };
+  
+  // Handler para limpar filtro de data
+  const handleDateFilterClear = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setDateFilterApplied(false);
+    filterAds();
   };
 
   // Formatar valores monetários
@@ -516,6 +574,60 @@ const AdPreviews: React.FC = () => {
                 disabled={!selectedAccount}
               />
             </Box>
+          </Box>
+          
+          {/* Filtro de Data */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Filtro por Data de Criação
+            </Typography>
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ width: { xs: '100%', sm: '48%', md: '23%' } }}>
+                  <DatePicker
+                    label="Data Inicial"
+                    value={startDate}
+                    onChange={(newValue) => setStartDate(newValue)}
+                    slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                    disabled={!selectedAccount || loading}
+                  />
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: '48%', md: '23%' } }}>
+                  <DatePicker
+                    label="Data Final"
+                    value={endDate}
+                    onChange={(newValue) => setEndDate(newValue)}
+                    slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                    disabled={!selectedAccount || loading}
+                    minDate={startDate || undefined}
+                  />
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: '48%', md: '23%' } }}>
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleDateFilterApply}
+                    disabled={!selectedAccount || loading || (!startDate && !endDate)}
+                    fullWidth
+                    size="medium"
+                  >
+                    Aplicar Filtro
+                  </Button>
+                </Box>
+                <Box sx={{ width: { xs: '100%', sm: '48%', md: '23%' } }}>
+                  <Button 
+                    variant="outlined" 
+                    color="secondary" 
+                    onClick={handleDateFilterClear}
+                    disabled={!selectedAccount || loading || (!startDate && !endDate && !dateFilterApplied)}
+                    fullWidth
+                    size="medium"
+                  >
+                    Limpar Filtro
+                  </Button>
+                </Box>
+              </Box>
+            </LocalizationProvider>
           </Box>
         </Paper>
 
