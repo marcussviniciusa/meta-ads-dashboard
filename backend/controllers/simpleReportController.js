@@ -180,7 +180,7 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
         console.log('Gerando gráfico de evolução temporal');
         const timeSeriesChartPath = await chartGenerator.generateTimeSeriesChart(
           metrics, 
-          selectedMetrics.slice(0, 3), // Limitando a 3 métricas para melhor visualização
+          selectedMetrics, // Usar todas as métricas selecionadas pelo usuário
           'Desempenho ao Longo do Período'
         );
         chartPaths.push(timeSeriesChartPath);
@@ -191,7 +191,7 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
         console.log('Gerando gráfico de comparação de métricas');
         // Usar diretamente as métricas selecionadas pelo usuário
         if (selectedMetrics.length >= 2) {
-          const metricsToCompare = selectedMetrics.slice(0, 4); // Limitar a 4 métricas para visualização
+          const metricsToCompare = selectedMetrics; // Usar todas as métricas selecionadas pelo usuário
           const performanceComparisonChart = await chartGenerator.generateComparisonChart(
             metrics, 
             metricsToCompare, 
@@ -340,11 +340,14 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
   // Criar caixas de destaque para métricas principais
   doc.moveDown(1);
   let boxY = doc.y;
-  const boxHeight = 80;
-  const boxWidth = width / 3 - 15;
   
-  // Usar as primeiras três métricas selecionadas pelo usuário como principais
-  const keyMetrics = selectedMetrics.slice(0, 3); // Pegar as 3 primeiras métricas selecionadas pelo usuário
+  // Usar todas as métricas selecionadas pelo usuário, adaptar layout conforme quantidade
+  const keyMetrics = selectedMetrics; // Usar todas as métricas selecionadas
+  
+  // Calcular o tamanho das caixas com base na quantidade de métricas
+  const boxesPerRow = Math.min(3, keyMetrics.length); // Máximo de 3 caixas por linha
+  const boxWidth = (width - 100) / boxesPerRow;
+  const boxHeight = 80;
   
   // Preparar dados para métricas-chave que serão destacadas no topo
   const keyMetricsData = [];
@@ -361,25 +364,37 @@ const generateMetricsReport = asyncHandler(async (req, res, next) => {
     }
   });
 
+  // Renderizar as métricas em linhas, com no máximo 3 por linha
+  let currentRow = 0;
+  let currentCol = 0;
+  
   keyMetricsData.forEach((metric, index) => {
     if (metric) {
-      const boxX = 50 + (index * (boxWidth + 15));
+      const rowY = boxY + (currentRow * (boxHeight + 15));
+      const boxX = 50 + (currentCol * (boxWidth + 15));
       
       // Caixa com cor de fundo
-      doc.roundedRect(boxX, boxY, boxWidth, boxHeight, 5)
-         .fillAndStroke('#f8f9fa', '#e9ecef');
+      doc.rect(boxX, rowY, boxWidth, boxHeight)
+         .fillAndStroke('#f5f9ff', '#e1e8f5');
       
-      // Nome da métrica
+      // Título da métrica
       doc.fillColor('#333333')
          .fontSize(14)
          .font('Helvetica-Bold')
-         .text(metric.label, boxX + 10, boxY + 15, { width: boxWidth - 20, align: 'center' });
+         .text(metric.label, boxX + 10, rowY + 15, { width: boxWidth - 20, align: 'center' });
       
       // Valor da métrica
       doc.fillColor('#4361ee')
          .fontSize(22)
          .font('Helvetica-Bold')
-         .text(metric.value, boxX + 10, boxY + 35, { width: boxWidth - 20, align: 'center' });
+         .text(metric.value, boxX + 10, rowY + 35, { width: boxWidth - 20, align: 'center' });
+      
+      // Atualizar posição para próxima caixa
+      currentCol++;
+      if (currentCol >= boxesPerRow) {
+        currentCol = 0;
+        currentRow++;
+      }
     }
   });
 
