@@ -26,6 +26,7 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   Description as ReportIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link } from 'react-router-dom';
 import authService from '../services/authService';
@@ -110,6 +111,15 @@ const Layout = ({ children, title }: LayoutProps) => {
               <ReportIcon />
             </ListItemIcon>
             <ListItemText primary="Relatórios" />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton component={Link} to="/shared-links">
+            <ListItemIcon>
+              <ShareIcon />
+            </ListItemIcon>
+            <ListItemText primary="Links Compartilháveis" />
           </ListItemButton>
         </ListItem>
         

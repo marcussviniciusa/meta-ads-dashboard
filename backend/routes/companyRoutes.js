@@ -8,17 +8,17 @@ const {
   addMetaAccount,
   removeMetaAccount
 } = require('../controllers/companyController');
-const { protect, authorize } = require('../middlewares/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Aplicar middleware de proteção a todas as rotas
 router.use(protect);
 
-// Rotas que exigem permissão de superadmin
+// Rotas para empresas
 router
   .route('/')
-  .get(authorize('superadmin'), getCompanies)
+  .get(getCompanies) // Permitir que qualquer usuário autenticado acesse a lista de empresas
   .post(authorize('superadmin'), createCompany);
 
 router

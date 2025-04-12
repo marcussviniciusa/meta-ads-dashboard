@@ -11,6 +11,8 @@ import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import CompaniesPage from './pages/CompaniesPage';
 import ReportGenerator from './pages/ReportGenerator';
+import SharedDashboardPage from './pages/SharedDashboardPage';
+import SharedLinksManagement from './pages/SharedLinksManagement';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -153,6 +155,16 @@ function App() {
                 <ReportGenerator />
               </ProtectedRoute>
             } />
+            
+            {/* Rota para gerenciamento de links compartilháveis */}
+            <Route path="/shared-links" element={
+              <ProtectedRoute>
+                <SharedLinksManagement />
+              </ProtectedRoute>
+            } />
+            
+            {/* Rota pública para dashboard compartilhado (sem autenticação) */}
+            <Route path="/shared-dashboard/:token" element={<SharedDashboardPage />} />
             
             {/* Redirecionar para dashboard se estiver autenticado */}
             <Route path="/" element={<IndexRedirect />} />

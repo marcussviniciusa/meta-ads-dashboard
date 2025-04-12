@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const fs = require('fs');
 require('dotenv').config();
@@ -13,6 +14,8 @@ const userRoutes = require('./routes/userRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const metricsRoutes = require('./routes/metricsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const sharedLinkRoutes = require('./routes/sharedLinkRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 // Conectar ao banco de dados
 connectDB();
@@ -22,6 +25,9 @@ const app = express();
 
 // Middleware para Body Parser
 app.use(express.json());
+
+// Middleware para cookies
+app.use(cookieParser());
 
 // Middleware de segurança
 app.use(helmet({
@@ -39,12 +45,23 @@ app.use('/reports', express.static(path.join(__dirname, 'public/reports'), {
   }
 }));
 
-// Criar diretório para relatórios se não existir
+// Criar diretórios necessários se não existirem
 const publicReportsDir = path.join(__dirname, 'public/reports');
 if (!fs.existsSync(publicReportsDir)) {
   fs.mkdirSync(publicReportsDir, { recursive: true });
 }
-// Configuração já definida acima
+
+// Garantir que o diretório temp/charts exista para geração de gráficos
+const tempChartsDir = path.join(__dirname, 'temp/charts');
+if (!fs.existsSync(tempChartsDir)) {
+  fs.mkdirSync(tempChartsDir, { recursive: true });
+}
+
+// Garantir que o diretório temp/reports exista para geração de relatórios
+const tempReportsDir = path.join(__dirname, 'temp/reports');
+if (!fs.existsSync(tempReportsDir)) {
+  fs.mkdirSync(tempReportsDir, { recursive: true });
+}
 
 // Habilitar CORS
 app.use(cors());
@@ -72,6 +89,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/shared-links', sharedLinkRoutes);
+
+// Rotas públicas (não requerem autenticação)
+app.use('/api/public', publicRoutes);
 
 // Rota básica para teste da API
 app.get('/', (req, res) => {
