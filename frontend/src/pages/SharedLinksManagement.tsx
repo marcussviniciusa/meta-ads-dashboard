@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Layout from '../components/Layout';
 import api from '../services/api';
+import authService from '../services/authService';
 
 // Interface para links compartilháveis
 interface SharedLink {
@@ -119,8 +120,24 @@ const SharedLinksManagement: React.FC = () => {
   // Buscar empresas
   const fetchCompanies = async () => {
     try {
+      const user = authService.getUser();
+      const isSuperAdmin = user?.role === 'superadmin';
+      
       const response = await api.get('/companies');
-      setCompanies(response.data.data);
+      
+      // Se for superadmin, mostra todas as empresas
+      // Se for usuário comum, mostra apenas a empresa associada ao usuário
+      if (isSuperAdmin) {
+        setCompanies(response.data.data);
+      } else if (user?.company) {
+        // Filtrar apenas a empresa do usuário
+        const userCompany = response.data.data.filter((company: any) => 
+          company._id === user.company
+        );
+        setCompanies(userCompany);
+      } else {
+        setCompanies([]);
+      }
     } catch (err: any) {
       console.error('Erro ao buscar empresas:', err);
     }
