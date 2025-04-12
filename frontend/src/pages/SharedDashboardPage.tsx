@@ -7,14 +7,12 @@ import {
   Paper,
   CircularProgress,
   Alert,
-  Grid,
   Button
 } from '@mui/material';
 import {
   ArrowBack,
   CalendarToday,
-  Business,
-  Facebook
+  Business
 } from '@mui/icons-material';
 import axios from 'axios';
 import MetricsDisplay from '../components/MetricsDisplay';
@@ -166,16 +164,16 @@ const SharedDashboardPage: React.FC = () => {
           <Typography variant="h5" gutterBottom>
             Métricas de Desempenho
           </Typography>
-          <Grid container spacing={3}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', margin: -1.5 }}>
             {selectedMetrics.map((metric: string) => (
-              <Grid item xs={12} sm={6} md={4} key={metric}>
+              <Box key={metric} sx={{ width: { xs: '100%', sm: '50%', md: '33.33%' }, padding: 1.5 }}>
                 <MetricsDisplay 
                   metric={metric} 
                   value={aggregatedMetrics[metric]} 
                 />
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         </Box>
         
         {/* Gráficos */}

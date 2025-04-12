@@ -4,3 +4,4 @@ backend/reports/*.pdf
 backend/public/reports/*.pdf
 backend/temp/charts/*.png
 backend/temp/reports/*.pdf
+backend/public/ad-images/*.jpg

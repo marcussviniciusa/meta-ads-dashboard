@@ -144,8 +144,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ data, metrics }) => {
             },
             ticks: {
               callback: function(value) {
-                if (value >= 1000) {
-                  return (Number(value) / 1000).toFixed(1) + 'k';
+                const numValue = Number(value);
+                if (numValue >= 1000) {
+                  return (numValue / 1000).toFixed(1) + 'k';
                 }
                 return value;
               }

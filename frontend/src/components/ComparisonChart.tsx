@@ -144,10 +144,11 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metrics }) => {
             },
             ticks: {
               callback: function(value) {
-                if (value >= 1000000) {
-                  return (Number(value) / 1000000).toFixed(1) + 'M';
-                } else if (value >= 1000) {
-                  return (Number(value) / 1000).toFixed(1) + 'k';
+                const numValue = Number(value);
+                if (numValue >= 1000000) {
+                  return (numValue / 1000000).toFixed(1) + 'M';
+                } else if (numValue >= 1000) {
+                  return (numValue / 1000).toFixed(1) + 'k';
                 }
                 return value;
               }

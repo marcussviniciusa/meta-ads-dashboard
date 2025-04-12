@@ -16,6 +16,8 @@ const metricsRoutes = require('./routes/metricsRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const sharedLinkRoutes = require('./routes/sharedLinkRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const adRoutes = require('./routes/adRoutes');
+const imageProxyRoutes = require('./routes/imageProxyRoutes');
 
 // Conectar ao banco de dados
 connectDB();
@@ -45,6 +47,28 @@ app.use('/reports', express.static(path.join(__dirname, 'public/reports'), {
   }
 }));
 
+// Configuração para servir imagens de anúncios como arquivos estáticos
+app.use('/ad-images', express.static(path.join(__dirname, 'public/ad-images'), {
+  setHeaders: (res, filePath) => {
+    // Definir headers apropriados para imagens
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.jpg' || ext === '.jpeg') {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (ext === '.png') {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (ext === '.gif') {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (ext === '.webp') {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+    
+    // Headers para cache e CORS
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache por 1 dia
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
+
 // Criar diretórios necessários se não existirem
 const publicReportsDir = path.join(__dirname, 'public/reports');
 if (!fs.existsSync(publicReportsDir)) {
@@ -63,8 +87,24 @@ if (!fs.existsSync(tempReportsDir)) {
   fs.mkdirSync(tempReportsDir, { recursive: true });
 }
 
-// Habilitar CORS
-app.use(cors());
+// Configuração CORS mais permissiva
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
+}));
+
+// Middleware adicional para CORS específico para imagens
+app.use((req, res, next) => {
+  if (req.path.includes('/api/images')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Timing-Allow-Origin', '*');
+  }
+  next();
+});
 
 // Logging de desenvolvimento
 if (process.env.NODE_ENV === 'development') {
@@ -90,6 +130,8 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/shared-links', sharedLinkRoutes);
+app.use('/api/ads', adRoutes);
+app.use('/api/images', imageProxyRoutes);
 
 // Rotas públicas (não requerem autenticação)
 app.use('/api/public', publicRoutes);

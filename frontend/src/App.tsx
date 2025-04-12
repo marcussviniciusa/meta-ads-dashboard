@@ -13,6 +13,7 @@ import CompaniesPage from './pages/CompaniesPage';
 import ReportGenerator from './pages/ReportGenerator';
 import SharedDashboardPage from './pages/SharedDashboardPage';
 import SharedLinksManagement from './pages/SharedLinksManagement';
+import AdPreviews from './pages/AdPreviews';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -160,6 +161,13 @@ function App() {
             <Route path="/shared-links" element={
               <ProtectedRoute>
                 <SharedLinksManagement />
+              </ProtectedRoute>
+            } />
+            
+            {/* Rota para pré-visualização de anúncios */}
+            <Route path="/ad-previews" element={
+              <ProtectedRoute>
+                <AdPreviews />
               </ProtectedRoute>
             } />
             
