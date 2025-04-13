@@ -39,14 +39,14 @@ interface ApiResponse<T> {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    const response = await api.post<AuthResponse>('/api/auth/login', credentials);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       
       // Assegurar que o objeto user tenha todos os campos necessários
       // Usando o getCurrentUser para obter todos os dados completos do usuário
       try {
-        const userResponse = await api.get('/auth/me');
+        const userResponse = await api.get('/api/auth/me');
         const fullUserData = userResponse.data.data;
         console.log('Dados completos do usuário obtidos após login:', fullUserData);
         localStorage.setItem('user', JSON.stringify(fullUserData));
@@ -59,18 +59,18 @@ export const authService = {
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/register', data);
+    const response = await api.post<AuthResponse>('/api/auth/register', data);
     return response.data;
   },
 
   async logout(): Promise<void> {
-    await api.get('/auth/logout');
+    await api.get('/api/auth/logout');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
 
   async getCurrentUser(): Promise<any> {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/api/auth/me');
     return response.data;
   },
 
@@ -99,33 +99,33 @@ export const authService = {
   
   // Métodos para gerenciamento de usuários
   async getUsers(): Promise<ApiResponse<any[]>> {
-    const response = await api.get('/users');
+    const response = await api.get('/api/users');
     return response.data;
   },
   
   async getUserById(id: string): Promise<ApiResponse<any>> {
-    const response = await api.get(`/users/${id}`);
+    const response = await api.get(`/api/users/${id}`);
     return response.data;
   },
   
   async createUser(data: UserFormValues): Promise<ApiResponse<any>> {
-    const response = await api.post('/users', data);
+    const response = await api.post('/api/users', data);
     return response.data;
   },
   
   async updateUser(id: string, data: UserFormValues): Promise<ApiResponse<any>> {
-    const response = await api.put(`/users/${id}`, data);
+    const response = await api.put(`/api/users/${id}`, data);
     return response.data;
   },
   
   async deleteUser(id: string): Promise<ApiResponse<any>> {
-    const response = await api.delete(`/users/${id}`);
+    const response = await api.delete(`/api/users/${id}`);
     return response.data;
   },
   
   // Métodos para gerenciamento de empresas
   async getCompanies(): Promise<ApiResponse<any[]>> {
-    const response = await api.get('/companies');
+    const response = await api.get('/api/companies');
     return response.data;
   }
 };

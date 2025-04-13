@@ -79,7 +79,7 @@ const DashboardPage = () => {
         // Se for usuário comum, carregar apenas sua empresa
         if (isSuperAdmin) {
           console.log('[DashboardPage] Buscando todas as empresas');
-          const response = await api.get('/companies');
+          const response = await api.get('/api/companies');
           const companiesData = response.data.data;
           
           // Atualizar o estado com as empresas carregadas
@@ -107,7 +107,7 @@ const DashboardPage = () => {
         } else {
           // Carregar a empresa do usuário normal
           console.log('[DashboardPage] Buscando empresa específica do usuário:', user.company);
-          const response = await api.get(`/companies/${user.company}`);
+          const response = await api.get(`/api/companies/${user.company}`);
           const companyData = response.data.data;
           
           // Logs detalhados para debug

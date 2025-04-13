@@ -1,9 +1,9 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import apiCache from './apiCache';
 
 // Criar uma instância do axios com configurações base
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +14,7 @@ const DEBUG_API_CALLS = true;
 const API_CALL_STACK_TRACE = true;
 
 // Função para obter o componente atual
-function getCurrentComponent() {
+function getCurrentComponent(): string {
   if (!API_CALL_STACK_TRACE) return 'unknown';
   try {
     const stackLines = new Error().stack?.split('\n') || [];
@@ -38,10 +38,11 @@ function getCurrentComponent() {
 
 // Adicionar interceptor para incluir o token de autenticação
 axiosInstance.interceptors.request.use(
-  async (config) => {
+  async (config: InternalAxiosRequestConfig) => {
     // Adicionar token de autenticação se disponível
     const token = localStorage.getItem('token');
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -59,13 +60,13 @@ axiosInstance.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
 );
 
 // Interceptor para tratar erros de resposta
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
     // Se receber erro de autenticação, redirecionar para login
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
@@ -117,14 +118,14 @@ const api = {
     }
     
     const requestPromise = axiosInstance.get<T>(url, config)
-      .then(response => {
+      .then((response: AxiosResponse<T>) => {
         // Guarda o resultado no cache com informação da fonte
         apiCache.set(cacheKey, response, callerComponent);
         // Remove da lista de requisições pendentes
         apiCache.clearPendingRequest(cacheKey);
         return response;
       })
-      .catch(error => {
+      .catch((error: AxiosError) => {
         // Remove da lista de requisições pendentes em caso de erro
         apiCache.clearPendingRequest(cacheKey);
         throw error;

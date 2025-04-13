@@ -33,34 +33,19 @@ services:
         limits:
           cpus: "1"
           memory: 1024M
-    labels:
-      # Configurações básicas do Traefik
-      - traefik.enable=true
-      - traefik.docker.network=SpeedFunnelsNet
-      
-      # Configuração do router
-      - traefik.http.routers.meta-backend.rule=Host(`api.speedfunnels.online`)
-      - traefik.http.routers.meta-backend.entrypoints=websecure
-      - traefik.http.routers.meta-backend.tls=true
-      - traefik.http.routers.meta-backend.tls.certresolver=letsencryptresolver
-      
-      # Configuração do serviço e porta
-      - traefik.http.services.meta-backend.loadbalancer.server.port=5000
-      
-      # Middlewares - strip prefix, compressão e CORS
-      - traefik.http.middlewares.meta-backend-prefix.stripprefix.prefixes=/api
-      - traefik.http.middlewares.meta-backend-compress.compress=true
-      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS
-      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolallowheaders=Content-Type,Authorization
-      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolalloworiginlist=https://app.speedfunnels.online
-      - traefik.http.middlewares.meta-backend-cors.headers.accesscontrolmaxage=100
-      - traefik.http.middlewares.meta-backend-cors.headers.addvaryheader=true
-      - traefik.http.routers.meta-backend.middlewares=meta-backend-prefix@docker,meta-backend-compress@docker,meta-backend-cors@docker
+      labels:
+        # Configurações Traefik - formato padronizado conforme seus outros arquivos
+        - "traefik.enable=true"
+        - "traefik.http.routers.meta-backend.rule=Host(`api.speedfunnels.online`)"
+        - "traefik.http.routers.meta-backend.entrypoints=websecure"
+        - "traefik.http.routers.meta-backend.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.meta-backend.service=meta-backend"
+        - "traefik.http.services.meta-backend.loadbalancer.server.port=5000"
+        - "traefik.docker.network=SpeedFunnelsNet"
+        - "traefik.http.routers.meta-backend.priority=1"
 
   meta-ads-frontend:
-    image: marcussviniciusa/speedfunnels-frontend:v1
-    depends_on:
-      - meta-ads-backend
+    image: marcussviniciusa/speedfunnels-frontend:v5
     networks:
       - SpeedFunnelsNet
     deploy:
@@ -72,26 +57,19 @@ services:
         limits:
           cpus: "0.5"
           memory: 512M
-    labels:
-      # Configurações básicas do Traefik
-      - traefik.enable=true
-      - traefik.docker.network=SpeedFunnelsNet
-      
-      # Configuração do router
-      - traefik.http.routers.meta-frontend.rule=Host(`app.speedfunnels.online`)
-      - traefik.http.routers.meta-frontend.entrypoints=websecure
-      - traefik.http.routers.meta-frontend.tls=true
-      - traefik.http.routers.meta-frontend.tls.certresolver=letsencryptresolver
-      
-      # Configuração do serviço e porta
-      - traefik.http.services.meta-frontend.loadbalancer.server.port=80
-      
-      # Middlewares - compressão e redirecionamento
-      - traefik.http.middlewares.meta-frontend-compress.compress=true
-      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.regex=^https://app.speedfunnels.online/(?:login|register|dashboard|reports|ad-previews|settings|account|notifications)$$
-      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.replacement=https://app.speedfunnels.online/
-      - traefik.http.middlewares.meta-frontend-redirect.redirectregex.permanent=true
-      - traefik.http.routers.meta-frontend.middlewares=meta-frontend-compress@docker,meta-frontend-redirect@docker
+      labels:
+        # Configurações Traefik - formato padronizado conforme seus outros arquivos
+        - "traefik.enable=true"
+        - "traefik.http.routers.meta-frontend.rule=Host(`app.speedfunnels.online`)"
+        - "traefik.http.routers.meta-frontend.entrypoints=websecure"
+        - "traefik.http.routers.meta-frontend.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.meta-frontend.service=meta-frontend"
+        - "traefik.http.services.meta-frontend.loadbalancer.server.port=80"
+        - "traefik.docker.network=SpeedFunnelsNet"
+        - "traefik.http.routers.meta-frontend.priority=1"
+        # Adicionar middleware para arquivos estáticos
+        - "traefik.http.middlewares.meta-frontend-compress.compress=true"
+        - "traefik.http.routers.meta-frontend.middlewares=meta-frontend-compress"
 
 # Volumes para persistência de dados
 volumes:

@@ -26,7 +26,7 @@ export const reportService = {
    * @returns Informações do relatório gerado, incluindo link compartilhável
    */
   async generateReport(companyId: string, adAccountId: string, params: GenerateReportParams) {
-    const response = await api.post(`/reports/generate/${companyId}/${adAccountId}`, params);
+    const response = await api.post(`/api/reports/generate/${companyId}/${adAccountId}`, params);
     return response.data;
   },
 
@@ -42,7 +42,7 @@ export const reportService = {
     }
     
     // Obter o host base da aplicação
-    const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+    const baseUrl = (import.meta as any).env.VITE_API_URL || window.location.origin;
     
     // Limpar a URL (remover a barra inicial se existir)
     const cleanUrl = reportUrl.startsWith('/') ? reportUrl.substring(1) : reportUrl;

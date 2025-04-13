@@ -273,7 +273,7 @@ const AdPreviews: React.FC = () => {
       const user = authService.getUser();
       const isSuperAdmin = user?.role === 'superadmin';
       
-      const response = await api.get('/companies');
+      const response = await api.get('/api/companies');
       
       // Se for superadmin, mostra todas as empresas
       // Se for usuário comum, mostra apenas a empresa associada ao usuário
@@ -322,7 +322,7 @@ const AdPreviews: React.FC = () => {
         params.endDate = endDate.toISOString().split('T')[0]; // Formato YYYY-MM-DD
       }
       
-      const response = await api.get(`/ads/${selectedAccount}`, {
+      const response = await api.get(`/api/ads/${selectedAccount}`, {
         params
       });
       

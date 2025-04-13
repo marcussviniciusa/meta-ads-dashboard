@@ -75,7 +75,7 @@ export const metricsService = {
     if (forceRefresh) params.append('forceRefresh', String(forceRefresh));
     
     const response = await api.get<MetricsResponse>(
-      `/metrics/${companyId}/${adAccountId}?${params.toString()}`
+      `/api/metrics/${companyId}/${adAccountId}?${params.toString()}`
     );
     
     return response.data;
@@ -85,7 +85,7 @@ export const metricsService = {
     companyId: string,
     days: number = 30
   ): Promise<any> {
-    const response = await api.post(`/metrics/sync/${companyId}`, { days });
+    const response = await api.post(`/api/metrics/sync/${companyId}`, { days });
     return response.data;
   },
   

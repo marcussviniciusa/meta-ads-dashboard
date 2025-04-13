@@ -134,7 +134,7 @@ const CompaniesPage = () => {
       
       try {
         console.log("Chamando API de empresas...");
-        const response = await api.get('/companies');
+        const response = await api.get('/api/companies');
         setCompanies(response.data.data);
       } catch (err) {
         console.error('Erro ao carregar empresas:', err);
@@ -185,16 +185,16 @@ const CompaniesPage = () => {
     try {
       if (editingCompany) {
         // Atualizar empresa existente
-        await api.put(`/companies/${editingCompany._id}`, values);
+        await api.put(`/api/companies/${editingCompany._id}`, values);
         showSuccess(`Empresa ${values.name} atualizada com sucesso!`);
       } else {
         // Criar nova empresa
-        await api.post('/companies', values);
+        await api.post('/api/companies', values);
         showSuccess(`Empresa ${values.name} criada com sucesso!`);
       }
       
       // Recarregar empresas
-      const response = await api.get('/companies');
+      const response = await api.get('/api/companies');
       setCompanies(response.data.data);
       
       handleCloseDialog();
@@ -212,13 +212,13 @@ const CompaniesPage = () => {
     try {
       if (selectedCompany) {
         // Adicionar conta de anúncios à empresa
-        await api.post(`/companies/${selectedCompany}/adaccounts`, {
+        await api.post(`/api/companies/${selectedCompany}/adaccounts`, {
           accountId: values.metaAccountId,
           accessToken: values.metaAccessToken
         });
         
         // Recarregar empresas
-        const response = await api.get('/companies');
+        const response = await api.get('/api/companies');
         setCompanies(response.data.data);
         
         handleCloseAdAccountDialog();
@@ -241,10 +241,10 @@ const CompaniesPage = () => {
   const handleConfirmDelete = async () => {
     if (companyToDelete) {
       try {
-        await api.delete(`/companies/${companyToDelete}`);
+        await api.delete(`/api/companies/${companyToDelete}`);
         
         // Recarregar empresas
-        const response = await api.get('/companies');
+        const response = await api.get('/api/companies');
         setCompanies(response.data.data);
         
         setDeleteConfirmOpen(false);
@@ -266,10 +266,10 @@ const CompaniesPage = () => {
   const handleConfirmDeleteAdAccount = async () => {
     if (adAccountToDelete) {
       try {
-        await api.delete(`/companies/${adAccountToDelete.companyId}/adaccounts/${adAccountToDelete.accountId}`);
+        await api.delete(`/api/companies/${adAccountToDelete.companyId}/adaccounts/${adAccountToDelete.accountId}`);
         
         // Recarregar empresas
-        const response = await api.get('/companies');
+        const response = await api.get('/api/companies');
         setCompanies(response.data.data);
         
         setDeleteAdAccountConfirmOpen(false);
@@ -288,7 +288,7 @@ const CompaniesPage = () => {
     setError(null);
     
     try {
-      const response = await api.get('/companies');
+      const response = await api.get('/api/companies');
       setCompanies(response.data.data);
       showSuccess('Dados atualizados com sucesso!');
     } catch (err) {

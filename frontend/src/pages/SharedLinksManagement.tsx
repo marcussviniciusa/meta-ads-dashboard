@@ -106,7 +106,7 @@ const SharedLinksManagement: React.FC = () => {
   const fetchSharedLinks = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/shared-links');
+      const response = await api.get('/api/shared-links');
       setSharedLinks(response.data.data);
       setError(null);
     } catch (err: any) {
@@ -123,7 +123,7 @@ const SharedLinksManagement: React.FC = () => {
       const user = authService.getUser();
       const isSuperAdmin = user?.role === 'superadmin';
       
-      const response = await api.get('/companies');
+      const response = await api.get('/api/companies');
       
       // Se for superadmin, mostra todas as empresas
       // Se for usuário comum, mostra apenas a empresa associada ao usuário
@@ -220,7 +220,7 @@ const SharedLinksManagement: React.FC = () => {
 
     try {
       setLoading(true);
-      await api.delete(`/shared-links/${id}`);
+      await api.delete(`/api/shared-links/${id}`);
       
       setNotification({
         open: true,
@@ -268,7 +268,7 @@ const SharedLinksManagement: React.FC = () => {
         expiryDays: parseInt(formData.expiryDays)
       };
       
-      await api.post('/shared-links', linkData);
+      await api.post('/api/shared-links', linkData);
       
       setNotification({
         open: true,
